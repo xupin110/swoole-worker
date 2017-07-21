@@ -18,18 +18,15 @@ class SwooleWorker
 
     public $onWorkerStart;
 
-    public $masterPid;
+    public static $masterPid;
 
-    public $workers = [];
-
-    public $statusFile = '';
+    public static $workers = [];
 
     public function __construct()
     {
         if (!extension_loaded('swoole')) {
             throw  new Exception('require swoole extension!!!');
         }
-        $this->statusFile = sys_get_temp_dir() . '/swoole.worker.status';
     }
 
     public function start()
@@ -43,7 +40,7 @@ class SwooleWorker
         } catch (\Exception $e) {
             die('ALL ERROR: ' . $e->getMessage());
         }
-        $this->masterPid = posix_getpid();
+        self::$masterPid = posix_getpid();
         for ($i = 0; $i < $this->workerNum; $i++) {
             $this->createProcess($i);
         }
@@ -61,14 +58,14 @@ class SwooleWorker
             }
         }, false, false);
         $pid = $process->start();
-        $this->workers[$index] = $pid;
+        self::$workers[$index] = $pid;
         return $pid;
     }
 
     public function rebootProcess($ret)
     {
         $pid = $ret['pid'];
-        $index = array_search($pid, $this->workers);
+        $index = array_search($pid, self::$workers);
         if ($index !== false) {
             $index = intval($index);
             $newPid = $this->createProcess($index);
@@ -80,7 +77,7 @@ class SwooleWorker
 
     public function checkMasterPid(swoole_process $worker)
     {
-        if (!swoole_process::kill($this->masterPid, 0)) {
+        if (!swoole_process::kill(self::$masterPid, 0)) {
             $worker->exit();
         }
     }
@@ -88,7 +85,7 @@ class SwooleWorker
     public function processWait()
     {
         while (1) {
-            if (count($this->workers)) {
+            if (count(self::$workers)) {
                 $ret = swoole_process::wait();
                 if ($ret) {
                     $this->rebootProcess($ret);

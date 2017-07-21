@@ -17,9 +17,8 @@ $worker->onWorkerStart = function ($process, $index) use($worker) {
     \Swoole\Timer::tick(1000, function () use($process, $index, $worker) {
         $worker->checkMasterPid($process);
         static $timerCount = 0;
-        $timerCount ++;
         file_put_contents('/tmp/swoole.test.log', 'worker index:' . $index . ' timerCount:' . $timerCount . PHP_EOL, FILE_APPEND);
-        if ($timerCount > 10) {
+        if (++$timerCount >= 10) {
             $process->exit();
         }
     });
