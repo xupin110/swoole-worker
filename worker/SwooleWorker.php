@@ -40,7 +40,7 @@ class SwooleWorker
         } catch (\Exception $e) {
             die('ALL ERROR: ' . $e->getMessage());
         }
-        self::$masterPid = posix_getpid();
+        self::$masterPid = getmypid();
         for ($i = 0; $i < $this->workerNum; $i++) {
             $this->createProcess($i);
         }
