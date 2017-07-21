@@ -22,9 +22,14 @@ class SwooleWorker
 
     public $workers = [];
 
+    public $statusFile = '';
+
     public function __construct()
     {
-
+        if (!extension_loaded('swoole')) {
+            throw  new Exception('require swoole extension!!!');
+        }
+        $this->statusFile = sys_get_temp_dir() . '/swoole.worker.status';
     }
 
     public function start()
@@ -33,7 +38,8 @@ class SwooleWorker
             if ($this->daemon) {
                 swoole_process::daemon();
             }
-            swoole_set_process_name(sprintf('SwooleWorker:%s', ' master process  start_file=' . realpath($_SERVER['PHP_SELF'])));
+            $masterProcessName = sprintf('SwooleWorker:%s', ' master process  start_file=' . realpath($_SERVER['PHP_SELF']));
+            swoole_set_process_name($masterProcessName);
         } catch (\Exception $e) {
             die('ALL ERROR: ' . $e->getMessage());
         }
@@ -47,7 +53,8 @@ class SwooleWorker
     public function createProcess($index)
     {
         $process = new swoole_process(function (swoole_process $process) use ($index) {
-            swoole_set_process_name(sprintf('SwooleWorker:%s', ' worker process  ' . $this->name));
+            $processName = sprintf('SwooleWorker:%s', ' worker process  ' . $this->name);
+            swoole_set_process_name($processName);
             if ($this->onWorkerStart) {
                 $func = $this->onWorkerStart;
                 $func($process, $index);
