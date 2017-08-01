@@ -9,7 +9,7 @@
 class SwooleWorker
 {
 
-    const VERSION = 1.0;
+    const VERSION = "1.0.0";
 
     public $workerNum = 1;
 
@@ -150,8 +150,6 @@ class SwooleWorker
                 pcntl_signal_dispatch();
                 if ($ret) {
                     $this->rebootProcess($ret);
-                } else {
-                    sleep(1);
                 }
             } else {
                 break;
