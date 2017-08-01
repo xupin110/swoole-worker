@@ -247,6 +247,10 @@ class SwooleWorker
             file_put_contents(self::$statusFile,
                 "pid\tmemory  " . "\n", FILE_APPEND);
 
+            $mem = str_pad(round(memory_get_usage(true) / (1024 * 1024), 2) . "M", 7);
+            $worker_status_str = $pid . "\t" . $mem . " " . "\n";
+            file_put_contents(self::$statusFile, $worker_status_str, FILE_APPEND);
+
             chmod(self::$statusFile, 0722);
             foreach (self::$workers as $worker_pid) {
                 swoole_process::kill($worker_pid, SIGUSR2);
