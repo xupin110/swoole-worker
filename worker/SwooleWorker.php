@@ -23,6 +23,8 @@ class SwooleWorker
 
     public static $workers = [];
 
+    public static $unreloadedWorkers = [];
+
     public static $statusFile = '/tmp/swoole.status.log';
 
     public function __construct()
@@ -196,15 +198,22 @@ class SwooleWorker
     {
         $pid = getmypid();
         if ($pid == self::$masterPid) {
-            $unreloadedWorkers = [];
+
             foreach (self::$workers as $index => $pid) {
-                if (!swoole_process::kill($pid, 0)) {
-                    $unreloadedWorkers[] = $index;
+                if (self::$unreloadedWorkers) {
+                    if (in_array($index, self::$unreloadedWorkers)) {
+                        swoole_process::kill($pid, SIGKILL);
+                        unset(self::$unreloadedWorkers[$index]);
+                    }
                 } else {
-                    swoole_process::kill($pid, SIGKILL);
+                    if (!swoole_process::kill($pid, 0)) {
+                        self::$unreloadedWorkers[] = $index;
+                    } else {
+                        swoole_process::kill($pid, SIGKILL);
+                    }
                 }
             }
-            if ($unreloadedWorkers) {
+            if (self::$unreloadedWorkers) {
                 $this->reload();
             }
             return;
