@@ -186,7 +186,10 @@ class SwooleWorker
     public function stop()
     {
         $pid = getmypid();
-        swoole_process::kill($pid, SIGKILL);
+        swoole_process::kill($pid, SIGTERM);
+        \Swoole\Timer::after(2000, function () use($pid) {
+            swoole_process::kill($pid, SIGKILL);
+        });
     }
 
     /**
@@ -200,14 +203,20 @@ class SwooleWorker
             foreach (self::$workers as $index => $pid) {
                 if (self::$unreloadedWorkers) {
                     if (in_array($index, self::$unreloadedWorkers)) {
-                        swoole_process::kill($pid, SIGKILL);
+                        swoole_process::kill($pid, SIGTERM);
                         unset(self::$unreloadedWorkers[$index]);
+                        \Swoole\Timer::after(2000, function () use($pid) {
+                            swoole_process::kill($pid, SIGKILL);
+                        });
                     }
                 } else {
                     if (!swoole_process::kill($pid, 0)) {
                         self::$unreloadedWorkers[] = $index;
                     } else {
-                        swoole_process::kill($pid, SIGKILL);
+                        swoole_process::kill($pid, SIGTERM);
+                        \Swoole\Timer::after(2000, function () use($pid) {
+                            swoole_process::kill($pid, SIGKILL);
+                        });
                     }
                 }
             }
