@@ -114,7 +114,7 @@ class SwooleWorker
      * reboot process
      * @param $ret
      * @return mixed
-     * @throws Exception
+     * @throws \Exception
      */
     public function rebootProcess($ret)
     {
@@ -131,7 +131,7 @@ class SwooleWorker
 
     /**
      * worker exit if checked master pid was unkilled
-     * @param swoole_process $worker
+     * @param \swoole_process $worker
      */
     public function checkMasterPid(\swoole_process $worker)
     {
