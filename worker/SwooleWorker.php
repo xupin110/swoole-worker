@@ -1,11 +1,13 @@
 <?php
-
 /**
  * Created by PhpStorm.
  * User: jun
  * Date: 2017/7/17
  * Time: 10:07
  */
+
+namespace ijuniorfu\swoole\worker;
+
 class SwooleWorker
 {
 
@@ -30,7 +32,7 @@ class SwooleWorker
     public function __construct()
     {
         if (!extension_loaded('swoole')) {
-            throw  new Exception('require swoole extension!!!');
+            throw  new \Exception('require swoole extension!!!');
         }
     }
 
@@ -41,7 +43,7 @@ class SwooleWorker
     {
         try {
             if ($this->daemon) {
-                swoole_process::daemon();
+                \swoole_process::daemon();
             }
             $masterProcessName = sprintf('SwooleWorker:%s', ' master process  start_file=' . realpath($_SERVER['PHP_SELF']));
             swoole_set_process_name($masterProcessName);
@@ -75,13 +77,13 @@ class SwooleWorker
             pcntl_signal(SIGPIPE, function () {}, false);
         } else {
             // stop
-            swoole_process::signal(SIGINT, [$this, 'signalHandler']);
+            \swoole_process::signal(SIGINT, [$this, 'signalHandler']);
             // reload
-            swoole_process::signal(SIGUSR1, [$this, 'signalHandler']);
+            \swoole_process::signal(SIGUSR1, [$this, 'signalHandler']);
             // status
-            swoole_process::signal(SIGUSR2, [$this, 'signalHandler']);
+            \swoole_process::signal(SIGUSR2, [$this, 'signalHandler']);
             // ignore
-            swoole_process::signal(SIGPIPE, function () {});
+            \swoole_process::signal(SIGPIPE, function () {});
         }
 
     }
@@ -93,7 +95,7 @@ class SwooleWorker
      */
     public function createProcess($index)
     {
-        $process = new swoole_process(function (swoole_process $process) use ($index) {
+        $process = new \swoole_process(function (\swoole_process $process) use ($index) {
             $processName = sprintf('SwooleWorker:%s', ' worker process  ' . $this->name);
             swoole_set_process_name($processName);
 
@@ -131,9 +133,9 @@ class SwooleWorker
      * worker exit if checked master pid was unkilled
      * @param swoole_process $worker
      */
-    public function checkMasterPid(swoole_process $worker)
+    public function checkMasterPid(\swoole_process $worker)
     {
-        if (!swoole_process::kill(self::$masterPid, 0)) {
+        if (!\swoole_process::kill(self::$masterPid, 0)) {
             $worker->exit();
         }
     }
@@ -146,7 +148,7 @@ class SwooleWorker
         while (true) {
             pcntl_signal_dispatch();
             if (count(self::$workers)) {
-                $ret = swoole_process::wait(false);
+                $ret = \swoole_process::wait(false);
                 pcntl_signal_dispatch();
                 if ($ret) {
                     $this->rebootProcess($ret);
@@ -186,9 +188,9 @@ class SwooleWorker
     public function stop()
     {
         $pid = getmypid();
-        swoole_process::kill($pid, SIGTERM);
+        \swoole_process::kill($pid, SIGTERM);
         \Swoole\Timer::after(2000, function () use($pid) {
-            swoole_process::kill($pid, SIGKILL);
+            \swoole_process::kill($pid, SIGKILL);
         });
     }
 
@@ -203,19 +205,19 @@ class SwooleWorker
             foreach (self::$workers as $index => $pid) {
                 if (self::$unreloadedWorkers) {
                     if (in_array($index, self::$unreloadedWorkers)) {
-                        swoole_process::kill($pid, SIGTERM);
+                        \swoole_process::kill($pid, SIGTERM);
                         unset(self::$unreloadedWorkers[$index]);
                         \Swoole\Timer::after(2000, function () use($pid) {
-                            swoole_process::kill($pid, SIGKILL);
+                            \swoole_process::kill($pid, SIGKILL);
                         });
                     }
                 } else {
-                    if (!swoole_process::kill($pid, 0)) {
+                    if (!\swoole_process::kill($pid, 0)) {
                         self::$unreloadedWorkers[] = $index;
                     } else {
-                        swoole_process::kill($pid, SIGTERM);
+                        \swoole_process::kill($pid, SIGTERM);
                         \Swoole\Timer::after(2000, function () use($pid) {
-                            swoole_process::kill($pid, SIGKILL);
+                            \swoole_process::kill($pid, SIGKILL);
                         });
                     }
                 }
@@ -262,7 +264,7 @@ class SwooleWorker
 
             chmod(self::$statusFile, 0722);
             foreach (self::$workers as $worker_pid) {
-                swoole_process::kill($worker_pid, SIGUSR2);
+                \swoole_process::kill($worker_pid, SIGUSR2);
             }
             return;
         }

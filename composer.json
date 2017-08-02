@@ -1,0 +1,28 @@
+{
+  "name": "ijuniorfu/swoole",
+  "description": "by swoole",
+  "type": "swoole",
+  "keywords": [
+    "ijuniorfu",
+    "swoole",
+    "jsonRpc"
+  ],
+  "homepage": "http://ijuniorfu.github.com/",
+  "license": "BSD-3-Clause",
+  "authors": [
+    {
+      "name": "ijuniorfu",
+      "email": "ijuniorfu@gmail.com",
+      "homepage": "http://ijuniorfu.github.com"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/ijuniorfu/swoole/issues",
+    "source": "https://github.com/ijuniorfu/swoole"
+  },
+  "autoload": {
+    "psr-4": {
+      "ijuniorfu\\swoole\\": ""
+    }
+  }
+}
