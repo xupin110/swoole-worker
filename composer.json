@@ -1,11 +1,11 @@
 {
-  "name": "ijuniorfu/swoole",
+  "name": "ijuniorfu/swoole-worker",
   "description": "by swoole",
   "type": "swoole",
   "keywords": [
     "ijuniorfu",
     "swoole",
-    "jsonRpc"
+    "worker"
   ],
   "homepage": "http://ijuniorfu.github.com/",
   "license": "BSD-3-Clause",
@@ -17,12 +17,12 @@
     }
   ],
   "support": {
-    "issues": "https://github.com/ijuniorfu/swoole/issues",
-    "source": "https://github.com/ijuniorfu/swoole"
+    "issues": "https://github.com/ijuniorfu/swoole-worker/issues",
+    "source": "https://github.com/ijuniorfu/swoole-worker"
   },
   "autoload": {
     "psr-4": {
-      "ijuniorfu\\swoole\\": ""
+      "ijuniorfu\\worker\\": ""
     }
   }
 }

@@ -6,14 +6,14 @@
  * Time: 10:07
  */
 
-namespace ijuniorfu\swoole\worker;
+namespace ijuniorfu\swooleWorker;
 
 class SwooleWorker
 {
 
     const VERSION = "1.0.0";
 
-    public $workerNum = 1;
+    public $num = 1;
 
     public $daemon = false;
 
@@ -54,7 +54,7 @@ class SwooleWorker
         $this->installSignal(false);
 
         self::$masterPid = getmypid();
-        for ($i = 0; $i < $this->workerNum; $i++) {
+        for ($i = 0; $i < $this->num; $i++) {
             $this->createProcess($i);
         }
         $this->processWait();

@@ -5,12 +5,10 @@
  * Date: 2017/7/17
  * Time: 13:52
  */
-
-require_once (__DIR__ . '/SwooleWorker.php');
-
+use ijuniorfu\swooleWorker\SwooleWorker;
 
 $worker = new SwooleWorker();
-$worker->workerNum = 5;
+$worker->num = 5;
 $worker->daemon = true;
 $worker->name = 'testest';
 $worker->onWorkerStart = function ($process, $index) use($worker) {
