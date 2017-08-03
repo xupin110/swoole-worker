@@ -17,19 +17,17 @@ class SwooleWorker
 
     public $daemon = false;
 
-    public $name;
+    public $name = 'none';
 
-    public $onWorkerStart;
+    public $onWorkerStart = null;
 
-    public $onWorkerStop;
+    protected static $_masterPid;
 
-    public static $masterPid;
+    protected static $_pids = [];
 
-    public static $workers = [];
+    protected static $_pidsToRestart = [];
 
-    public static $unreloadedWorkers = [];
-
-    public static $statusFile = '/tmp/swoole.status.log';
+    protected static $_statusFile = '/tmp/swoole.status.log';
 
     public function __construct()
     {
@@ -53,9 +51,9 @@ class SwooleWorker
             die('ALL ERROR: ' . $e->getMessage());
         }
 
-        $this->installSignal(false);
+        self::installSignal();
 
-        self::$masterPid = getmypid();
+        self::$_masterPid = getmypid();
         for ($i = 0; $i < $this->num; $i++) {
             $this->createProcess($i);
         }
@@ -64,29 +62,17 @@ class SwooleWorker
 
     /**
      * Install signal handler
-     * @param bool $async
      */
-    public function installSignal($async = false)
+    public static function installSignal()
     {
-        if (!$async) {
-            // stop
-            pcntl_signal(SIGINT, [$this, 'signalHandler'], false);
-            // reload
-            pcntl_signal(SIGUSR1, [$this, 'signalHandler'], false);
-            // status
-            pcntl_signal(SIGUSR2, [$this, 'signalHandler'], false);
-            // ignore
-            pcntl_signal(SIGPIPE, function () {}, false);
-        } else {
-            // stop
-            \swoole_process::signal(SIGINT, [$this, 'signalHandler']);
-            // reload
-            \swoole_process::signal(SIGUSR1, [$this, 'signalHandler']);
-            // status
-            \swoole_process::signal(SIGUSR2, [$this, 'signalHandler']);
-            // ignore
-            \swoole_process::signal(SIGPIPE, function () {});
-        }
+        // stop
+        \swoole_process::signal(SIGINT, ['\ijuniorfu\worker\SwooleWorker', 'signalHandler']);
+        // reload
+        \swoole_process::signal(SIGUSR1, ['\ijuniorfu\worker\SwooleWorker', 'signalHandler']);
+        // status
+        \swoole_process::signal(SIGUSR2, ['\ijuniorfu\worker\SwooleWorker', 'signalHandler']);
+        // ignore
+        \swoole_process::signal(SIGPIPE, function () {});
 
     }
 
@@ -100,15 +86,14 @@ class SwooleWorker
         $process = new \swoole_process(function (\swoole_process $process) use ($index) {
             $processName = sprintf('SwooleWorker:%s', ' worker process  ' . $this->name);
             swoole_set_process_name($processName);
-
-            $this->installSignal(true);
+            self::installSignal();
 
             if ($this->onWorkerStart) {
                 call_user_func_array($this->onWorkerStart, [$process, $index]);
             }
         }, false, false);
         $pid = $process->start();
-        self::$workers[$index] = $pid;
+        self::$_pids[$index] = $pid;
         return $pid;
     }
 
@@ -121,7 +106,7 @@ class SwooleWorker
     public function rebootProcess($ret)
     {
         $pid = $ret['pid'];
-        $index = array_search($pid, self::$workers);
+        $index = array_search($pid, self::$_pids);
         if ($index !== false) {
             $index = intval($index);
             $newPid = $this->createProcess($index);
@@ -137,7 +122,7 @@ class SwooleWorker
      */
     public function checkMasterPid(\swoole_process $worker)
     {
-        if (!\swoole_process::kill(self::$masterPid, 0)) {
+        if (!\swoole_process::kill(self::$_masterPid, 0)) {
             $worker->exit();
         }
     }
@@ -147,39 +132,34 @@ class SwooleWorker
      */
     public function processWait()
     {
-        while (true) {
-            pcntl_signal_dispatch();
-            if (count(self::$workers)) {
-                $ret = \swoole_process::wait(false);
-                pcntl_signal_dispatch();
-                if ($ret) {
-                    $this->rebootProcess($ret);
-                }
-            } else {
-                break;
+        \swoole_process::signal(SIGCHLD, function () {
+            //表示子进程已关闭，回收它
+            while ($ret = \swoole_process::wait(false)) {
+                $this->rebootProcess($ret);
             }
-        }
+        });
     }
 
     /**
      * signal handler
      * @param $signo
      */
-    public function signalHandler($signo)
+    public static function signalHandler($signo)
     {
 
         switch ($signo) {
             // Stop.
             case SIGINT:
-                $this->stop();
+                self::stop();
                 break;
             // Reload.
             case SIGUSR1:
-                $this->reload();
+                self::$_pidsToRestart = self::$_pids;
+                self::reload();
                 break;
             // Show status.
             case SIGUSR2:
-                $this->status();
+                self::status();
                 break;
         }
     }
@@ -187,11 +167,11 @@ class SwooleWorker
     /**
      *  stop
      */
-    public function stop()
+    public static function stop()
     {
         $pid = getmypid();
         \swoole_process::kill($pid, SIGTERM);
-        \Swoole\Timer::after(2000, function () use($pid) {
+        \Swoole\Timer::after(2000, function () use ($pid) {
             \swoole_process::kill($pid, SIGKILL);
         });
     }
@@ -199,73 +179,56 @@ class SwooleWorker
     /**
      *  reload
      */
-    public function reload()
+    public static function reload()
     {
         $pid = getmypid();
-        if ($pid == self::$masterPid) {
+        if ($pid == self::$_masterPid) {
 
-            foreach (self::$workers as $index => $pid) {
-                if (self::$unreloadedWorkers) {
-                    if (in_array($index, self::$unreloadedWorkers)) {
-                        \swoole_process::kill($pid, SIGTERM);
-                        unset(self::$unreloadedWorkers[$index]);
-                        \Swoole\Timer::after(2000, function () use($pid) {
-                            \swoole_process::kill($pid, SIGKILL);
-                        });
-                    }
-                } else {
-                    if (!\swoole_process::kill($pid, 0)) {
-                        self::$unreloadedWorkers[] = $index;
-                    } else {
-                        \swoole_process::kill($pid, SIGTERM);
-                        \Swoole\Timer::after(2000, function () use($pid) {
-                            \swoole_process::kill($pid, SIGKILL);
-                        });
-                    }
-                }
+            foreach (self::$_pidsToRestart as $index => $pid) {
+                \swoole_process::kill($pid, SIGUSR1);
+                \Swoole\Timer::after(2000, function () use ($pid) {
+                    \swoole_process::kill($pid, SIGKILL);
+                });
             }
-            if (self::$unreloadedWorkers) {
-                $this->reload();
-            }
-            return;
+
         } else {
-            $this->stop();
+            self::stop();
         }
     }
 
     /**
      *  status
      */
-    public function status()
+    public static function status()
     {
         $pid = getmypid();
 
-        if ($pid == self::$masterPid) {
+        if ($pid == self::$_masterPid) {
             $loadavg = function_exists('sys_getloadavg') ? array_map('round', sys_getloadavg(), array(2)) : array('-', '-', '-');
-            file_put_contents(self::$statusFile,
+            file_put_contents(self::$_statusFile,
                 "---------------------------------------GLOBAL STATUS--------------------------------------------\n");
 
-            file_put_contents(self::$statusFile,
+            file_put_contents(self::$_statusFile,
                 'SwooleWorker version:' . SwooleWorker::VERSION . "          PHP version:" . PHP_VERSION . "\n", FILE_APPEND);
 
             $load_str = 'load average: ' . implode(", ", $loadavg);
-            file_put_contents(self::$statusFile, str_pad($load_str, 33) . "\n", FILE_APPEND);
+            file_put_contents(self::$_statusFile, str_pad($load_str, 33) . "\n", FILE_APPEND);
 
-            file_put_contents(self::$statusFile, count(self::$workers) . " processes\n", FILE_APPEND);
+            file_put_contents(self::$_statusFile, count(self::$_pids) . " processes\n", FILE_APPEND);
 
-            file_put_contents(self::$statusFile,
+            file_put_contents(self::$_statusFile,
                 "---------------------------------------PROCESS STATUS-------------------------------------------\n",
                 FILE_APPEND);
 
-            file_put_contents(self::$statusFile,
+            file_put_contents(self::$_statusFile,
                 "pid\tmemory  " . "\n", FILE_APPEND);
 
             $mem = str_pad(round(memory_get_usage(true) / (1024 * 1024), 2) . "M", 7);
             $worker_status_str = $pid . "\t" . $mem . " " . "\n";
-            file_put_contents(self::$statusFile, $worker_status_str, FILE_APPEND);
+            file_put_contents(self::$_statusFile, $worker_status_str, FILE_APPEND);
 
-            chmod(self::$statusFile, 0722);
-            foreach (self::$workers as $worker_pid) {
+            chmod(self::$_statusFile, 0722);
+            foreach (self::$_pids as $worker_pid) {
                 \swoole_process::kill($worker_pid, SIGUSR2);
             }
             return;
@@ -273,7 +236,7 @@ class SwooleWorker
 
         $mem = str_pad(round(memory_get_usage(true) / (1024 * 1024), 2) . "M", 7);
         $worker_status_str = $pid . "\t" . $mem . " " . "\n";
-        file_put_contents(self::$statusFile, $worker_status_str, FILE_APPEND);
+        file_put_contents(self::$_statusFile, $worker_status_str, FILE_APPEND);
     }
 
 }

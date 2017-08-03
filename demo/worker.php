@@ -7,6 +7,8 @@
  */
 use ijuniorfu\worker\SwooleWorker;
 
+require_once (dirname(__DIR__) . '/vendor/autoload.php');
+
 $worker = new SwooleWorker();
 $worker->num = 5;
 $worker->daemon = true;
