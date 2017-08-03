@@ -6,7 +6,7 @@
  * Time: 10:07
  */
 
-namespace ijuniorfu\swooleWorker;
+namespace ijuniorfu\worker;
 
 class SwooleWorker
 {
@@ -20,6 +20,8 @@ class SwooleWorker
     public $name;
 
     public $onWorkerStart;
+
+    public $onWorkerStop;
 
     public static $masterPid;
 

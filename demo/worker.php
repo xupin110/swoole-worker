@@ -5,7 +5,7 @@
  * Date: 2017/7/17
  * Time: 13:52
  */
-use ijuniorfu\swooleWorker\SwooleWorker;
+use ijuniorfu\worker\SwooleWorker;
 
 $worker = new SwooleWorker();
 $worker->num = 5;
