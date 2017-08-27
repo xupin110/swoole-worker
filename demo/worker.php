@@ -11,9 +11,8 @@ require_once (dirname(__DIR__) . '/vendor/autoload.php');
 
 $worker = new SwooleWorker();
 $worker->num = 5;
-$worker->daemon = true;
 $worker->name = 'testest';
-$worker->onWorkerStart = function ($process, $index) use($worker) {
+$worker->on('WorkerStart', function ($process, $index) use($worker) {
     \Swoole\Timer::tick(1000, function () use($process, $index, $worker) {
         $worker->checkMasterPid($process);
         static $timerCount = 0;
@@ -22,6 +21,6 @@ $worker->onWorkerStart = function ($process, $index) use($worker) {
             $process->exit();
         }
     });
-};
+});
 
 $worker->run();
