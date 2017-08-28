@@ -78,6 +78,7 @@ class SwooleWorker
 
         self::init();
         self::installSignal();
+        self::saveMasterPid();
 
         for ($i = 0; $i < $this->num; $i++) {
             $this->createProcess($i);
@@ -120,6 +121,19 @@ class SwooleWorker
         }
 
         self::$_masterPid = getmypid();
+    }
+
+    /**
+     * Save pid.
+     *
+     * @throws \Exception
+     */
+    protected static function saveMasterPid()
+    {
+        self::$_masterPid = getmypid();
+        if (false === @file_put_contents(self::$pidFile, self::$_masterPid)) {
+            throw new \Exception('can not save pid to ' . self::$pidFile);
+        }
     }
 
     /**
