@@ -240,8 +240,10 @@ class SwooleWorker
         switch ($event) {
             case 'WorkerStart' :
                 self::$_onWorkerStart = $callback;
+                break;
             case 'WorkerStop' :
                 self::$_onWorkerStop = $callback;
+                break;
             case 'WorkerReload' :
                 self::$_onWorkerReload = $callback;
                 break;
@@ -302,7 +304,9 @@ class SwooleWorker
         }
         \swoole_process::kill($pid, SIGTERM);
         \Swoole\Timer::after(self::KILL_WORKER_TIMER_TIME * 1000, function () use ($pid) {
-            \swoole_process::kill($pid, SIGKILL);
+            if (\swoole_process::kill($pid, 0)) {
+                \swoole_process::kill($pid, SIGKILL);
+            }
         });
     }
 
@@ -317,7 +321,9 @@ class SwooleWorker
             foreach (self::$_pidsToRestart as $index => $pid) {
                 \swoole_process::kill($pid, SIGUSR1);
                 \Swoole\Timer::after(self::KILL_WORKER_TIMER_TIME * 1000, function () use ($pid) {
-                    \swoole_process::kill($pid, SIGKILL);
+                    if (\swoole_process::kill($pid, 0)) {
+                        \swoole_process::kill($pid, SIGKILL);
+                    }
                 });
             }
 
