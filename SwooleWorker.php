@@ -506,10 +506,10 @@ class SwooleWorker
                 FILE_APPEND);
 
             file_put_contents(self::$_statusFile,
-                "pid\tmemory  " . "\n", FILE_APPEND);
+                "pid\tmemory\tworker_name" . "\n", FILE_APPEND);
 
             $mem = str_pad(round(memory_get_usage(true) / (1024 * 1024), 2) . "M", 7);
-            $worker_status_str = $pid . "\t" . $mem . " " . "\n";
+            $worker_status_str = $pid . "\t" . $mem . "\t" . 'master process' . "\n";
             file_put_contents(self::$_statusFile, $worker_status_str, FILE_APPEND);
 
             chmod(self::$_statusFile, 0722);
@@ -520,7 +520,7 @@ class SwooleWorker
         }
 
         $mem = str_pad(round(memory_get_usage(true) / (1024 * 1024), 2) . "M", 7);
-        $worker_status_str = $pid . "\t" . $mem . " " . "\n";
+        $worker_status_str = $pid . "\t" . $mem . "\t" . self::$workerName . "\n";
         file_put_contents(self::$_statusFile, $worker_status_str, FILE_APPEND);
     }
 
