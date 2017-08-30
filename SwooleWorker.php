@@ -201,10 +201,15 @@ class SwooleWorker
         register_shutdown_function(['\ijuniorfu\worker\SwooleWorker', 'checkErrors']);
     }
 
+    /**
+     * Fork all worker processes.
+     *
+     * @return void
+     */
     protected static function forkAllWorkers()
     {
         for ($i = 0; $i < self::$workerNum; $i++) {
-            self::createProcess();
+            self::forkOneWorker();
         }
     }
 
@@ -239,11 +244,10 @@ class SwooleWorker
     }
 
     /**
-     * create process
-     * @param $index
+     * Fork one worker process.
      * @return mixed
      */
-    protected static function createProcess()
+    protected static function forkOneWorker()
     {
         $process = new \swoole_process(function (\swoole_process $process) {
             $processName = sprintf('SwooleWorker:%s', ' worker process  ' . self::$workerName);
@@ -273,21 +277,6 @@ class SwooleWorker
         $pid = $process->start();
         self::$_pids[$pid] = $pid;
         return $pid;
-    }
-
-    /**
-     * reboot process
-     * @param $ret
-     * @return mixed
-     * @throws \Exception
-     */
-    protected static function rebootProcess($ret)
-    {
-        $pid = $ret['pid'];
-        $code = $ret['code'];
-        $newPid = self::createProcess();
-        self::$_pids[$newPid] = $newPid;
-        return $newPid;
     }
 
     /**
@@ -326,7 +315,7 @@ class SwooleWorker
 
                 // Is still running state then fork a new worker process.
                 if (self::$_status !== self::STATUS_SHUTDOWN) {
-                    self::rebootProcess($ret);
+                    self::forkOneWorker();
                     // If reloading continue.
                     if (isset(self::$_pidsToRestart[$pid])) {
                         unset(self::$_pidsToRestart[$pid]);
