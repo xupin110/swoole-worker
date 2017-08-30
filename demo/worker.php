@@ -9,14 +9,20 @@ use ijuniorfu\worker\SwooleWorker;
 
 require_once (dirname(__DIR__) . '/vendor/autoload.php');
 
-$worker = new SwooleWorker();
-$worker->num = 5;
-$worker->name = 'testest';
-$worker->on('WorkerStart', function ($process, $index) use($worker) {
-    \Swoole\Timer::tick(1000, function () use($process, $index, $worker) {
-        $worker->checkMasterPid($process);
+$worker = new SwooleWorker([
+    'worker_num' => 6,
+    'daemonize' => true,
+    'worker_name' => 'haha',
+    'pid_file' => '/tmp/swoole.worker.pid',
+    'log_file' => '/tmp/swoole.worker.log',
+]);
+$worker->on('WorkerStart', function ($process) {
+    \Swoole\Timer::tick(1000, function () use($process) {
+        SwooleWorker::checkMasterPid($process);
         static $timerCount = 0;
-        file_put_contents('/tmp/swoole.test.log', 'worker index:' . $index . ' timerCount:' . $timerCount . PHP_EOL, FILE_APPEND);
+
+        $pid = getmypid();
+        file_put_contents('/tmp/swoole.test.log', 'worker pid:' . $pid . ' timerCount:' . $timerCount . PHP_EOL, FILE_APPEND);
         if (++$timerCount >= 100) {
             $process->exit();
         }
