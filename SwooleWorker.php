@@ -147,9 +147,10 @@ class SwooleWorker
     /**
      * run worker
      */
-    public function run()
+    public function run($cmd = 'start')
     {
         self::init();
+        self::parseCmd($cmd);
         self::installSignal();
         self::saveMasterPid();
         self::forkAllWorkers();
@@ -491,7 +492,7 @@ class SwooleWorker
         if ($pid == self::$_masterPid) {
             $loadavg = function_exists('sys_getloadavg') ? array_map('round', sys_getloadavg(), array(2)) : array('-', '-', '-');
             file_put_contents(self::$_statusFile,
-                "---------------------------------------GLOBAL STATUS--------------------------------------------\n");
+                "\n---------------------------------------GLOBAL STATUS--------------------------------------------\n");
 
             file_put_contents(self::$_statusFile,
                 'SwooleWorker version:' . SwooleWorker::VERSION . "          PHP version:" . PHP_VERSION . "\n", FILE_APPEND);
@@ -610,6 +611,82 @@ class SwooleWorker
     {
         if (!function_exists('posix_isatty') || posix_isatty(STDOUT)) {
             echo $msg;
+        }
+    }
+
+    /**
+     * Parse command
+     * @param $cmd
+     */
+    public static function parseCmd($cmd)
+    {
+        $start_file = realpath($_SERVER['PHP_SELF']);
+        // Get master process PID.
+        $master_pid      = @file_get_contents(self::$pidFile);
+        $master_is_alive = $master_pid && \swoole_process::kill($master_pid, 0);
+        // Master is still alive?
+        if ($master_is_alive) {
+            if ($cmd === 'start' && posix_getpid() != $master_pid) {
+                self::log("SwooleWorker[$start_file] already running");
+                exit;
+            }
+        } elseif ($cmd !== 'start' && $cmd !== 'restart') {
+            self::log("SwooleWorker[$start_file] not run");
+            exit;
+        }
+        switch ($cmd) {
+            case 'start':
+                break;
+            case 'restart':
+            case 'stop':
+                self::log("SwooleWorker[$start_file] is stoping ...");
+                if ($master_is_alive) {
+                    // Send stop signal to master process.
+                    $master_pid && \swoole_process::kill($master_pid, SIGINT);
+                }
+                // Timeout.
+                $timeout    = 5;
+                $start_time = time();
+                // Check master process is still alive?
+                while (1) {
+                    $master_is_alive = $master_pid && \swoole_process::kill($master_pid, 0);
+                    if ($master_is_alive) {
+                        // Timeout?
+                        if (time() - $start_time >= $timeout) {
+                            self::log("SwooleWorker[$start_file] stop fail");
+                            exit;
+                        }
+                        // Waiting amoment.
+                        usleep(10000);
+                        continue;
+                    }
+                    // Stop success.
+                    self::log("SwooleWorker[$start_file] stop success");
+                    if ($cmd === 'stop') {
+                        exit(0);
+                    }
+                    break;
+                }
+                break;
+            case 'reload':
+                \swoole_process::kill($master_pid, SIGUSR1);
+                self::log("SwooleWorker[$start_file] reload");
+                exit;
+            case 'status':
+                if (is_file(self::$_statusFile)) {
+                    @unlink(self::$_statusFile);
+                }
+                // Master process will send status signal to all child processes.
+                \swoole_process::kill($master_pid, SIGUSR2);
+                // Waiting amoment.
+                sleep(3);
+                // Display statisitcs data from a disk file.
+                @readfile(self::$_statusFile);
+                exit(0);
+                break;
+            default :
+                exit("Usage: php $start_file {start|stop|restart|reload|status}\n");
+
         }
     }
 

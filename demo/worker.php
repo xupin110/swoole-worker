@@ -9,6 +9,10 @@ use ijuniorfu\worker\SwooleWorker;
 
 require_once (dirname(__DIR__) . '/vendor/autoload.php');
 
+
+$command  = isset($argv[1]) ? $argv[1] : '';
+$command = trim($command);
+
 $worker = new SwooleWorker([
     'worker_num' => 6,
     'daemonize' => true,
@@ -29,4 +33,4 @@ $worker->on('WorkerStart', function ($process) {
     });
 });
 
-$worker->run();
+$worker->run($command);
